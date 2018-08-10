@@ -1,0 +1,480 @@
+---
+title: "Predictive Modeling Assignment 1"
+author: "Joey Chen, Jess Lee, Vincent Kuo, Matt Zlotnik"
+date: "August 8, 2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+## Probability practice
+#### Answers - Part A
+All the signs of "&&" below denotes intersection. 
+
+The following is given: 
+P(RC) = 0.3
+P(No|RC) = P(Yes|RC) =0.5
+P(Yes) = 0.65
+
+The fraction of people who are TC answered yes is P(yes|TC) - the probability of answering yes conditional on TC. 
+<br>
+To calculate: P(yes|TC) = P(yes && TC) / P(TC)
+<br>
+ - P(TC) = 1-P(RC) = 0.7
+ <br>
+ - P(Yes && RC) = P(RC)*P(Yes|RC) = 0.15
+By the Law of Total Probability: 
+<br>
+ - P(Yes && TC) = P(yes) - P(Yes && RC)  = 0.65-0.15 = 0.5
+ <br>
+Thus we have:<br>
+P(yes|TC) = P(yes && TC) / P(TC) = 0.5/0.7 = 0.7143 (rounded)
+
+####Answer - Part B.
+TP denotes being tested positive, while TN denotes being tested negative. RP denotes that in fact positive, while RN denotes otherwisely. <br>
+Given the following: <br>
+ - P(TP|RP) = 0.993 = P(TP&&RP)/P(RP) <br>
+ - P(TN|RN) = 0.9999 = P(TN&&RN) / P(RN) <br>
+ - P(RP) = 0.000025 <br>
+ - P(RN) = 1-P(RP) = 0.999975 <br>
+To derive the following: <br>
+P(RP|TP), which is equivalent to P(RP&&TP)/P(TP) <p>
+
+P(TP&&RP) = 0.993*P(RP) = 0.000024825 <br>
+P(TP) = P(TP&&RP)+ P(TP&&RN) = 0.0000999975 + 0.000024825 = , of which P(TP&&RN) is derived as following: <br>
+P(TP&&RN) =  P(RN)- P(TN&&RN) = 0.999975 -(P(RN) * P(TN|RN)) =0.999975 -  0.9998750025 = 0.0000999975 <p>
+
+Thus, <br>
+P(RP|TP) = P(RP&&TP)/P(TP) = 0.000024825/0.0001248225 = 0.19888241302 <br>
+The probability that a patient has disease given he/she is tested positive is only around 0.1989. This method fails to conclude whether a patient has disease and will mis-suggest a positive outcome while the truth is negative. 
+
+
+## Exploratory analysis: green buildings
+```{r results='hide', message=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(lawstat)
+library(vcd)
+greenbuildings <- read.csv('../data/greenbuildings.csv', header=TRUE)
+na.omit(greenbuildings)
+```
+
+To measure impact of green building on market value of building, first, it is a reasonable to compare greenbuilding sample and non-greenbuilding sample. However, for accurate comparison, features other than 'green_ratings' of each sample should be controlled to be similar to one another.<br><br>
+     
+The staff from the case controlled 'occupancy rate', however, this process turns out to be ineffective. To verify whether 'occupancy rate' is impacting 'rent' projection, we checked correlation between 'occupancy rate(leasing_rate)' and 'rent'.
+
+```{r}
+#1.Comparing dataset without occupancy less than 10% to original
+hist(greenbuildings$leasing_rate, main="Histogram for Occupancy", xlab="occupancy",border="blue", col="green",las=1,breaks=16,prob = TRUE)
+lines(density(greenbuildings$leasing_rate))
+```
+
+Since the distribution of 'occupancy rate' is skewed, here we used 'spearman' correlation.
+
+```{r}
+more10 <- greenbuildings%>%filter(leasing_rate > 0.1)
+#Correlation between 'occupancy rate' and 'Rent' from buildings with occupancy rate higer than 10%.
+a <- cor(more10$leasing_rate, more10$Rent, method='spearman')
+print(a)
+b <- cor(greenbuildings$leasing_rate, greenbuildings$Rent, method='spearman')
+print(b)
+```
+
+The difference between correlation based on processed data, 0.23, and one based on original data, 0.24, is marginal.<br>
+Occupancy rate is not confounding variable, however, there are few other confounding variables which need to be controlled.
+
+####Confounding variable 1: 'age'
+```{r echo=FALSE}
+#Divided set with only greenbuidlings('g') and one without greenbuildings('ng').
+g <- greenbuildings%>%filter(green_rating==1)
+ng <- greenbuildings%>%filter(green_rating!=1)
+
+int = order(g[,8])
+green_only_age=g[int,]
+ind = order(ng[,8])
+non_green_age=ng[ind,]
+
+par(mfrow=c(2,1))
+hist(ng$age,xlim = c(0,150))
+hist(green_only_age$age,xlim = c(0,150))
+
+par(mfrow=c(1,1))
+plot(non_green_age$age,non_green_age$Rent,xlim = c(0,150),ylim=c(0,250),type = "p",col="blue",
+     ylab="Rent", xlab="Age")
+par(new=T)
+plot(green_only_age$age,green_only_age$Rent,xlim = c(0,150),ylim=c(0,250),type = "p",col="green",
+     xlab=" ",ylab=" ")
+```
+
+Age range of greenbuidlings is smaller than that of non-greenbuildings. Moreover, the number of non-greenbuildings based on age are somehow polarized; frequency concetrated at under 50 year-old and over 100 year-old.
+```{r}
+rent_all_green = lm(Rent~., data=greenbuildings)
+summary(rent_all_green)
+```
+
+According to linear regression result, age does not impact upon greenbuildings' statistically significantly, however, age impacts rent among non-greenbuildings. Thus we controlled the range of age to under 50 and checked median.
+     
+```{r}
+#Based on initial histogram, cut out data based on age under 40.
+g50 <- g%>%filter(age<40)
+ng50 <- ng%>%filter(age<40)
+#Then compared median of orginal data and age-controlled data
+print(median(ng50$Rent)-median(g50$Rent))
+print(median(ng$Rent)-median(g$Rent))
+```
+
+Comparing to median from original data, after age control, median changed by 1.4 per square, which would significantly change whole rent. If 'age' was not confounding variable, the median after processing should have not been changed. Thus, first confounding variable 'age' should be controlled and to do so, we will filter out buildings with age lower than 40.
+
+####Confounding variable 2: 'class'
+```{r echo=FALSE}
+mosaic(greenbuildings$class_a ~ greenbuildings$green_rating)
+print(length(which(g$class_a==1))/nrow(g))
+print(length(which(ng$class_a==1))/nrow(ng))
+```
+     
+Green buildings has much higher portion of a-class(about 80%) comparing to non green buildings(about 36%). Considering the fact that buildings with a-class tend to have higher rent, variable 'class-a' has high potential to work as a confounding variable and impact the result significantly. Thus, both greenbuildings and non-greenbuildins data should control 'class_a', and here, as a way to control, we suggest to consider only a-class buildings.
+
+####Confounding variable 3: 'net'
+```{r echo=FALSE}
+par(mfrow=c(1,2))
+boxplot(Rent~net, data = g, main='Green Buildings')
+boxplot(Rent~net, data = ng, main='Non-Green Buildings')
+```
+
+'0' represents building including amenities in Rent and '1' represents Rent withoug amenities. Boxplots are describing that impact of net on rent varies of greenbuildings is not similar to that of non-greenbuildings. Since 'net' is a confounding variable, here, we decided to control data by including only 'net=1' data because it has less outliers in both cases, greenbuildings and non-greebuildings.
+
+####Comparing rent based on confounding-variable-controlled samples and simple expected return estimation
+```{r echo=FALSE}
+cg <- greenbuildings%>%filter(age<40, class_a==1, net==1)
+c1 <- cg%>%filter(green_rating==1)
+c3 <- cg%>%filter(green_rating==0)
+c2 <- aggregate(c1[,c(5,7)], list(c1$stories), median)
+c4 <- aggregate(c3[,c(5,7)], list(c3$stories), median)
+par(mfrow=c(1,2))
+boxplot(Rent~green_rating, data=cg, main='Rent~Green Rating')
+plot(Rent~stories, data=c2, main='Median Rent~stories', col='red', ylim=c(0,50), xlim=c(0,70))
+par(new=T)
+plot(Rent~stories, data=c4, main='Median Rent~stories', col='blue', ylim=c(0,50), xlim=c(0,70))
+abline(v=15)
+```
+
+According to box plot on the left, greenbuidlings('1') earn higher rents in average than non-greenbuidings('0'). There is a chance to have extremely high rent return for non-greenbuilding owners, however, greenbuilding owners have more chance to have relatively higher return in average. Also, especially in case of 15-story green building from the case, it is expected to have about $21 per square rent income in average. However, in prespective of stories of building, it seems that there is no significant amount of premium for green-buildings('red dot') compared to non-green buildings('blue dot'). Since variable 'stories' has less statistics significance, more information about target greenbuilding(building for investment) is required and revenue-projection should be done from perspectives from those information.
+
+
+## Bootstrapping
+```{r ,results='hide', message=FALSE, warning=FALSE}
+rm(list=ls())
+library(mosaic)
+library(quantmod)
+library(foreach)
+```
+
+```{r echo=T, results='hide',message=FALSE, warning=FALSE}
+mystocks = c("SPY","TLT","LQD","EEM","VNQ")
+getSymbols(mystocks)
+
+for(ticker in mystocks) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+
+all_returns = cbind(ClCl(SPYa),ClCl(TLTa),ClCl(LQDa),ClCl(EEMa),ClCl(VNQa))
+all_returns = as.matrix(na.omit(all_returns))
+```
+Now we have all five assets' daily returns.<br>
+We want to understand the risk return properties of these assets. <br>
+We will use variance of the return to capture risk of the assets. If the variance of the return is high, than this ETF might be a high risk asset. 
+
+```{r}
+# risk/return properties
+etf_var <- apply(all_returns,2,var)
+etf_mean <- apply(all_returns,2,mean)
+
+etf_var[which.min(etf_var)]
+etf_mean[which.min(etf_mean)]
+# LQD is the safest
+
+etf_var[which.max(etf_var)]
+etf_mean[which.max(etf_mean)]
+# EEM is the most aggressive
+```
+Now we know LQD has the lowest risk and the lowest return, so LQD is the safest ETF.<br>
+On the other hand, EEM has the highest average return but has the highest risk. <br><br>
+After understanding those properties, we should start to consider our asset allocation. <br>
+Because ETFs might have correlation, the safest strategy will be not to choose highly correlated ETFs combination to distribute the risk. <br>So, we want to know the correlation among all the ETFs. 
+
+```{r}
+cor(all_returns)
+```
+
+#### Portfolio 1
+```{r}
+set.rseed(99)
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.2, 0.2, 0.2, 0.2, 0.2)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+  }
+  wealthtracker
+}
+return1 = mean(sim1[,n_days])
+hist(sim1[,n_days]- initial_wealth, breaks=30,main = "Histogram of Return for Portfolio 1",xlab = "Return")
+VaR1 = quantile(sim1[,n_days], 0.05) - initial_wealth
+abline(v=VaR1,col="red",lty=2)
+cat("Portfolio 1: final wealth = ",return1,"\n")
+cat("Portfolio 1: 5% level Value at Risk = ",VaR1)
+```
+For Portfolio 1, we evenly split assets in each of the five ETFs.<br>
+The red line on the histogram is the 5% VaR.<br>
+After using bootstrap to simulate 4-week trading day, the final wealth is 100789.2 and the 5% level VaR is -6207.459. <br><br>
+Let's use another stratgey in Portfolio 2. 
+
+#### Portfolio 2
+For Portfolio 2, we want to use a safer strategy. <br>
+We already have some understanding of risk properties about all five ETFs, and for safer allocation, we want to drop EEM due to the high risk. <br>
+Furthermore, we put more weight on the low risk ETFs (TLT & LQD).
+
+```{r}
+set.rseed(99)
+initial_wealth = 100000
+sim2 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.2, 0.3, 0.3, 0, 0.2)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+  }
+  wealthtracker
+}
+
+return2 = mean(sim2[,n_days])
+hist(sim2[,n_days]- initial_wealth, breaks=30,main = "Histogram of Return for Portfolio 2",xlab = "Return")
+VaR2 = quantile(sim2[,n_days], 0.05) - initial_wealth
+abline(v=VaR2,col="red",lty=2)
+cat("Portfolio 2: final wealth = ",return2,"\n")
+cat("Portfolio 2: 5% level Value at Risk = ",VaR2)
+```
+The result shows us that we will have less return but also have less risk compared to Portfolio 1. We will have 233 dollars less profit but the VaR is at -4064 dollars. <br><br>
+However, we think this is not the safest strategy. We talked about the correlation among ETFs and we think we should take this into account. 
+```{r}
+cor(all_returns)
+```
+In the correlation matrix, we can see that SPY and VNQ has a really high correlation. If we want to take the safest allocation strategy, we should avoid choosing ETFs with high correlation to prevent risk. Thus, now we use another allocation tht we think is safer. We drop VNQ due to the high correlation with SPY, and run the bootstrap. 
+
+```{r}
+set.rseed(99)
+initial_wealth = 100000
+sim2_new = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.3, 0.3, 0.4, 0, 0)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+  }
+  wealthtracker
+}
+
+return2_new = mean(sim2_new[,n_days])
+hist(sim2_new[,n_days]- initial_wealth, breaks=30,main = "Histogram of Return for Portfolio 2",xlab = "Return")
+VaR2_new = quantile(sim2_new[,n_days], 0.05) - initial_wealth
+abline(v=VaR2_new,col="red",lty=2)
+cat("Portfolio 2: final wealth = ",return2_new,"\n")
+cat("Portfolio 2: 5% level Value at Risk = ",VaR2_new)
+```
+As we can see, the final wealth is about 10 dollars less but VaR is about 1200 dollars more!<br>
+And we can see that the histogram converges to the middle. It means that we are getting a lower risk result by sacrificing higher return. <br>
+In conclusion, we should not only consider ETFs variance but also consider the correlation between ETFs. <br><br>
+Now, let's think of a aggressive strategy. 
+
+#### Portfolio 3 
+When it comes to more aggressive strategy, we plan to put most of our assets on high-return and high-risk ETFs. The reason why we choose EEM and VNQ is that they have the top 2 high average return. Besides, these two ETFs' correlation is about 0.3 and this time we want the correlation to be high. The reason is that we want both of the ETFs to grow together and make more profits more aggressively.
+```{r}
+set.rseed(99)
+initial_wealth = 100000
+sim3 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0,0,0,0.8,0.2)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+  }
+  wealthtracker
+}
+
+return3 = mean(sim3[,n_days])
+hist(sim3[,n_days]- initial_wealth, breaks=30,main = "Histogram of Return for Portfolio 3",xlab = "Return")
+VaR3 = quantile(sim3[,n_days], 0.05) - initial_wealth
+abline(v=VaR3,col="red",lty=2)
+cat("Portfolio 3: final wealth = ",return3,"\n")
+cat("Portfolio 3: 5% level Value at Risk = ",VaR3)
+
+```
+As we can see, the histogram is right-skewed. We get several high return results but we do have some big loss too. <br>
+The final wealth we have is 101683, almost 700 dollars more than Portfolio 1. However, we do have a -12791 5% VaR.<br><br> 
+In conclusion, we recommend readers to choose between Portfolio 2 and Portfolio 3. Choosing Portfolio 1 will yield small return and prevent small risk. If readers want to choose a safer allocation strategy, Portfolio 2 provides them a reasonable profits with a low risk. If readers try to be aggressive, Portfolio 3 will yield the most return but have more risk. However, we want to emphasize that we should always consider the correlation among the assets. People can always distribute the risk by choosing small correlation ETFs.
+
+## Market Segmentation
+
+```{r, include = FALSE}
+#setup
+library(LICORS)
+library(ggplot2)
+
+data = read.csv("../data/social_marketing.csv")
+```
+
+####PCA
+To try and find interesting market segments, we primarily used two modeling techniques. First, we tried to use Principal Components Analysis to try and analyze groupings of all 36 variables in the dataset. 
+<p>
+
+According to the PCA summary as well as the plot below, we realized that, with only 2 dimensions, the explained variance is only 20%. 
+```{r pca}
+
+set.seed(2)
+data_scaled = scale(data[,-1], center = T, scale = T)
+pca <- prcomp(data_scaled, scale = T)
+summary(pca)
+loadings = pca$rotation
+scores = pca$x
+s = summary(pca)
+plot(s$importance[2,])
+```
+
+
+In the first principal dimension, most of observations concentrate on the right hand side.
+As the top loadings are about spam/adult/gamine/college, we conclude these may be two kinds of uses: spam/porn bots that aren't excluded and undergrad gamer. As to the left hand side, with significantly fewer observations, those features do not yield clear information either. 
+<br>
+In the second principal component, we can clearly see that the higher value side is the people who love fashion/dressing/life styles and are willing to share. 
+<br>
+The lower value side of the second dimension is almost the same with the first dimension.
+Last but not least, the correlation of the first and second component is apparent: the higher the value in first component, the lower the variance of observations in the second dimension, centralzing at the middle (where is close to 0). Base on these facts, we consider that the second dimension is not powerful in explaining data, and is even worse when observations have higher value in first dimension, say those bots and undergrad gamers. 
+```{r pca1}
+qplot(scores[,1], scores[,2], xlab='Component 1', ylab='Component 2')
+o1 = order(loadings[,1], decreasing=TRUE)
+colnames(data_scaled)[head(o1,5)]
+colnames(data_scaled)[tail(o1,5)]
+
+o2 = order(loadings[,2], decreasing=TRUE)
+colnames(data_scaled)[head(o2,5)]
+colnames(data_scaled)[tail(o2,5)]
+```
+
+<br>
+After digging through the loadings and analyzing the scatterplot of the first two principal components, we realized that PCA would most likely not be the most effective way to find interesting market clusters.<br>
+
+####K-Menas
+
+Next, we used k-means clustering analysis to try and group the users into different clusters. A primary struggle in using the K-means process was choosing how many clusters, K, we should create in the data. We decided to start with three clusters and work up to more clusters until we deemed the number of clusters too complicated for reasonable interpretation and analysis. When looking at three clusters, we noticed a peculiar occurrence that two of the three clusters shared the same three most common interests shown by their accounts. These two clusters we deemed to be the health-and-fitness group, as their interests included chatter, health, nutrition, and photo sharing. The third cluster in this model showed interest in sports fandom, religion, and food. As such, we have deemed this cluster the “Texans”, as those three interests primarily describe the general population in the state of Texas. 
+
+```{r fig1, fig.height = 5, fig.width = 9, fig.align = "center"}
+set.seed(2)
+data_scaled = scale(data[,-1], center = T, scale = T)
+
+#kmeanspp modeling, k =3
+clust2 = kmeanspp(data_scaled, k=3, nstart=25)
+obs_ci = data.frame(matrix(ncol = 36, nrow = 3))
+obs_c = data.frame()
+for (i in 1:3){
+  c = which(clust2$cluster == i)
+  obs_c= data[c,]
+  obs_ci[i,] = apply(obs_c[,-1],2,mean)
+}
+colnames(obs_ci)<- names(apply(obs_c[,-1],2,mean))
+
+##number of observations in a cluster
+for(i in 1:3){
+  print(length(which(clust2$cluster == i)))
+}
+
+#plot top 5 for each cluster
+for (i in 1:3){
+  plotV <- sort(obs_ci[i,], decreasing = T)[1:5]
+  barplot(as.vector(as.matrix(plotV)),names.arg = names(plotV))
+}
+
+
+
+#kmeanspp modeling, k =5
+clust2 = kmeanspp(data_scaled, k=5, nstart=25)
+obs_ci = data.frame(matrix(ncol = 36, nrow = 5))
+obs_c = data.frame()
+for (i in 1:5){
+  c = which(clust2$cluster == i)
+  obs_c= data[c,]
+  obs_ci[i,] = apply(obs_c[,-1],2,mean)
+}
+colnames(obs_ci)<- names(apply(obs_c[,-1],2,mean))
+
+##number of observations in a cluster
+for(i in 1:5){
+  print(length(which(clust2$cluster == i)))
+}
+
+#plot top 5 for each cluster
+for (i in 1:5){
+  plotV <- sort(obs_ci[i,], decreasing = T)[1:5]
+  barplot(as.vector(as.matrix(plotV)),names.arg = names(plotV))
+}
+
+
+
+
+#kmeanspp modeling, k =7
+clust2 = kmeanspp(data_scaled, k=7, nstart=25)
+obs_ci = data.frame(matrix(ncol = 36, nrow = 7))
+obs_c = data.frame()
+for (i in 1:7){
+  c = which(clust2$cluster == i)
+  obs_c= data[c,]
+  obs_ci[i,] = apply(obs_c[,-1],2,mean)
+}
+colnames(obs_ci)<- names(apply(obs_c[,-1],2,mean))
+
+##number of observations in a cluster
+for(i in 1:7){
+  print(length(which(clust2$cluster == i)))
+}
+
+#plot top 5 for each cluster
+for (i in 1:7){
+  plotV <- sort(obs_ci[i,], decreasing = T)[1:5]
+  barplot(as.vector(as.matrix(plotV)),names.arg = names(plotV))
+}
+
+```
+
+Realizing that these three clusters could not properly cover the whole dataset, we increased the number of clusters. After trying several values of K, we finally settled on seven clusters. Of these clusters, we think that “NurtientH20”, a company founded on the principles of health and active lifestyles, should target “Global Citizens”, a cluster focused on travel, news, and politics; “Fitness Addicts”, a cluster focused on health, nutrition, and personal fitness; and “Young Homemakers”, a cluster focused mainly on cooking, photo sharing, and fashion. We believe that if NutrientH20 follows our recommendations and focuses on these three specific market segments we discovered in our clustering analysis, they will increase their revenues without having to sharply increase advertising budgets. 
+
+
+
+
+
+
+
+
+
+
+
+
