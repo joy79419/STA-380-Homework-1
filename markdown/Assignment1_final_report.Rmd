@@ -105,20 +105,22 @@ plot(green_only_age$age,green_only_age$Rent,xlim = c(0,150),ylim=c(0,250),type =
      xlab=" ",ylab=" ")
 ```
 
-Age range of greenbuidlings is smaller than that of non-greenbuildings. Moreover, the number of non-greenbuildings based on age are somehow polarized; frequency concetrated at under 50 year-old and over 100 year-old.
+Age range of greenbuidlings is smaller than that of non-greenbuildings. Moreover, the number of non-greenbuildings based on age are somehow polarized; frequency concetrated at under 50 year-old and over 80 year-old.
 ```{r}
-rent_all_green = lm(Rent~., data=greenbuildings)
-summary(rent_all_green)
+rent_green = lm(Rent~., data=g)
+rent_non_green = lm(Rent~., data=ng)
+summary(rent_green)
+summary(rent_non_green)
 ```
 
-According to linear regression result, age does not impact upon greenbuildings' statistically significantly, however, age impacts rent among non-greenbuildings. Thus we controlled the range of age to under 50 and checked median.
+According to linear regression result, age does not impact upon greenbuildings' statistically significantly, however, age impacts rent among non-greenbuildings. Thus we controlled the range of age to under 40 and checked median.
      
 ```{r}
 #Based on initial histogram, cut out data based on age under 40.
-g50 <- g%>%filter(age<40)
-ng50 <- ng%>%filter(age<40)
+g40 <- g%>%filter(age<40)
+ng40 <- ng%>%filter(age<40)
 #Then compared median of orginal data and age-controlled data
-print(median(ng50$Rent)-median(g50$Rent))
+print(median(ng40$Rent)-median(g40$Rent))
 print(median(ng$Rent)-median(g$Rent))
 ```
 
@@ -359,7 +361,7 @@ summary(pca)
 loadings = pca$rotation
 scores = pca$x
 s = summary(pca)
-plot(s$importance[2,])
+plot(s$importance[2,],xlab='PC', ylab='Proportion of Variance')
 ```
 
 
@@ -386,7 +388,7 @@ After digging through the loadings and analyzing the scatterplot of the first tw
 
 ####K-Menas
 
-Next, we used k-means clustering analysis to try and group the users into different clusters. A primary struggle in using the K-means process was choosing how many clusters, K, we should create in the data. We decided to start with three clusters and work up to more clusters until we deemed the number of clusters too complicated for reasonable interpretation and analysis. When looking at three clusters, we noticed a peculiar occurrence that two of the three clusters shared the same three most common interests shown by their accounts. These two clusters we deemed to be the health-and-fitness group, as their interests included chatter, health, nutrition, and photo sharing. The third cluster in this model showed interest in sports fandom, religion, and food. As such, we have deemed this cluster the "Texans", as those three interests primarily describe the general population in the state of Texas. 
+Next, we used k-means clustering analysis to try and group the users into different clusters. A primary struggle in using the K-means process was choosing how many clusters, K, we should create in the data.  
 
 ```{r fig1, fig.height = 5, fig.width = 9, fig.align = "center"}
 set.seed(2)
@@ -413,9 +415,9 @@ for (i in 1:3){
   plotV <- sort(obs_ci[i,], decreasing = T)[1:5]
   barplot(as.vector(as.matrix(plotV)),names.arg = names(plotV))
 }
-
-
-
+```
+We decided to start with three clusters and work up to more clusters until we deemed the number of clusters too complicated for reasonable interpretation and analysis. When looking at three clusters, we noticed a peculiar occurrence that two of the three clusters shared the same three most common interests shown by their accounts. These two clusters we deemed to be the health-and-fitness group, as their interests included chatter, health, nutrition, and photo sharing. The third cluster in this model showed interest in sports fandom, religion, and food. As such, we have deemed this cluster the "Texans", as those three interests primarily describe the general population in the state of Texas.
+```{r}
 #kmeanspp modeling, k =5
 clust2 = kmeanspp(data_scaled, k=5, nstart=25)
 obs_ci = data.frame(matrix(ncol = 36, nrow = 5))
@@ -465,12 +467,28 @@ for (i in 1:7){
 
 ```
 
-Realizing that these three clusters could not properly cover the whole dataset, we increased the number of clusters. After trying several values of K, we finally settled on seven clusters. Of these clusters, we think that "NurtientH20", a company founded on the principles of health and active lifestyles, should target "Global Citizens", a cluster focused on travel, news, and politics; "Fitness Addicts", a cluster focused on health, nutrition, and personal fitness; and "Young Homemakers", a cluster focused mainly on cooking, photo sharing, and fashion. We believe that if NutrientH20 follows our recommendations and focuses on these three specific market segments we discovered in our clustering analysis, they will increase their revenues without having to sharply increase advertising budgets. 
+Realizing that these three clusters could not properly cover the whole dataset, we increased the number of clusters. After trying several values of K, we finally settled on seven clusters. Of these clusters, we think that "NurtientH20", a company founded on the principles of health and active lifestyles, should target "Global Citizens", a cluster focused on travel, news, and politics; "Fitness Addicts", a cluster focused on health, nutrition, and personal fitness; and "Young Homemakers", a cluster focused mainly on cooking, photo sharing, and fashion. We believe that if NutrientH20 follows our recommendations and focuses on these three specific market segments we discovered in our clustering analysis, they will increase their revenues without having to sharply increase advertising budgets. <br><br>
+[Appendix]<br>
+For further exploration to the data, we tried to find a way to plot the 7 clusters on PCA graph. And this is our findings. 
 
+```{r warning=FALSE}
+library(factoextra)
+library(tidyverse)
 
+fviz_cluster(clust2, data = data_scaled,geom = "point")
 
+options(dplyr.width = Inf)
+mm<-data %>%
+     mutate(Cluster = clust2$cluster) %>%
+     group_by(Cluster) %>%
+     summarise_all("mean")
+m = as.data.frame(mm)
+m = m[,3:38]
 
-
+sort(m[6,],decreasing = T)
+sort(m[7,],decreasing = T)
+```
+From this graph, we could know more about the PC. Although PC1 cannot tell us any story, PC2 seperates cluster 6 and cluster 7 pretty clearly. Looking into cluster 6, we found that they are the group of people who like cooking, photo sharing and fashion, and we called them "Young Homemakers". Group 7 happened to be the "Texans". Thus, we could say people with high PC2 scores might be a "Young Homemakers" and people with low PC2 scores might be a "Texans" in our clusters. 
 
 
 
