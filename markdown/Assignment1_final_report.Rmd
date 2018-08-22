@@ -3,8 +3,9 @@ title: "Predictive Modeling Assignment 1"
 author: "Joey Chen, Jess Lee, Vincent Kuo, Matt Zlotnik"
 date: "August 8, 2018"
 output:
-  html_document: default
-  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
 ---
 ## Probability practice
 #### Answers - Part A
@@ -235,7 +236,7 @@ cat("Portfolio 1: 5% level Value at Risk = ",VaR1)
 ```
 For Portfolio 1, we evenly split assets in each of the five ETFs.<br>
 The red line on the histogram is the 5% VaR.<br>
-After using bootstrap to simulate 4-week trading day, the final wealth is 100789.2 and the 5% level VaR is -6207.459. <br><br>
+After using bootstrap to simulate 4-week trading day, the final wealth is 100911.2 and the 5% level VaR is -6253.86. <br><br>
 Let's use another stratgey in Portfolio 2. 
 
 #### Portfolio 2
@@ -268,7 +269,7 @@ abline(v=VaR2,col="red",lty=2)
 cat("Portfolio 2: final wealth = ",return2,"\n")
 cat("Portfolio 2: 5% level Value at Risk = ",VaR2)
 ```
-The result shows us that we will have less return but also have less risk compared to Portfolio 1. We will have 233 dollars less profit but the VaR is at -4064 dollars. <br><br>
+The result shows us that we will have less return but also have less risk compared to Portfolio 1. We will have 290 dollars less profit but the VaR is at -4222.945 dollars. <br><br>
 However, we think this is not the safest strategy. We talked about the correlation among ETFs and we think we should take this into account. 
 ```{r}
 cor(all_returns)
@@ -300,7 +301,7 @@ abline(v=VaR2_new,col="red",lty=2)
 cat("Portfolio 2: final wealth = ",return2_new,"\n")
 cat("Portfolio 2: 5% level Value at Risk = ",VaR2_new)
 ```
-As we can see, the final wealth is about 10 dollars less but VaR is about 1200 dollars more!<br>
+As we can see, the final wealth is about 40 dollars less but VaR is about 1200 dollars more!<br>
 And we can see that the histogram converges to the middle. It means that we are getting a lower risk result by sacrificing higher return. <br>
 In conclusion, we should not only consider ETFs variance but also consider the correlation between ETFs. <br><br>
 Now, let's think of a aggressive strategy. 
@@ -334,7 +335,7 @@ cat("Portfolio 3: 5% level Value at Risk = ",VaR3)
 
 ```
 As we can see, the histogram is right-skewed. We get several high return results but we do have some big loss too. <br>
-The final wealth we have is 101683, almost 700 dollars more than Portfolio 1. However, we do have a -12791 5% VaR.<br><br> 
+The final wealth we have is 101755, almost 850 dollars more than Portfolio 1. However, we do have a -12648.89 5% VaR.<br><br> 
 In conclusion, we recommend readers to choose between Portfolio 2 and Portfolio 3. Choosing Portfolio 1 will yield small return and prevent small risk. If readers want to choose a safer allocation strategy, Portfolio 2 provides them a reasonable profits with a low risk. If readers try to be aggressive, Portfolio 3 will yield the most return but have more risk. However, we want to emphasize that we should always consider the correlation among the assets. People can always distribute the risk by choosing small correlation ETFs.
 
 ## Market Segmentation
